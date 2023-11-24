@@ -150,6 +150,10 @@ const ui = {
     vSpace: 20,
   },
   renderStats: () => {
+    const dustLimit = Decimal.div(
+      document.querySelector('#dustLimit').value,
+      100_000_000 // from satoshis to btc
+    )
     const initialBudget = Number(document.querySelector('#initialBudget').value)
     const {
       eachPayment,
@@ -161,11 +165,13 @@ const ui = {
       sumPayments,
       sumVTXOs,
     } = days.untilNow()
+    const connectorsValue = Decimal.mul(numVTXOs, dustLimit).toNumber()
+    const totalCost = Decimal.add(sumVTXOs, connectorsValue).toNumber()
     const budget = {
       initial: initialBudget,
-      available: Decimal.sub(initialBudget, sumVTXOs).toNumber(),
-      reserved: sumVTXOs,
-      used: Decimal.div(sumVTXOs, initialBudget).mul(100).toNumber(),
+      payments: sumVTXOs,
+      connectors: connectorsValue,
+      available: Decimal.sub(initialBudget, totalCost).toNumber(),
     }
     const stats = `
       <p>Each: ${pretty.btc(eachPayment)} BTC</p>
@@ -181,9 +187,9 @@ const ui = {
     `
     const liquidity = `
       <p>Initial: ${pretty.btc(budget.initial)} BTC</p>
+      <p>Payments: ${pretty.btc(budget.payments)} BTC</p>
+      <p>Connectors: ${pretty.btc(budget.connectors)} BTC</p>
       <p>Available: ${pretty.btc(budget.available)} BTC</p>
-      <p>Reserved: ${pretty.btc(budget.reserved)} BTC</p>
-      <p>Used: ${pretty.num(budget.used)} %</p>
     `
     document.querySelector('#graph1').innerHTML = stats
     document.querySelector('#graph2').innerHTML = vtxos
@@ -235,9 +241,13 @@ const ui = {
     document.querySelector('.timelineContainer').innerHTML = svg
   },
   resizeTimeline: () => {
+    const container = document.querySelector('.timelineContainer')
     const numberUsers = Number(document.querySelector('#numberUsers').value)
     const height = (numberUsers + 2) * ui.theme.vSpace
-    document.querySelector('.timelineContainer').style.height = `${height}px`
+    // don't reduce size
+    console.log(container?.offsetHeight, height, container.style)
+    if (container?.offsetHeight > height) return
+    container.style.height = `${height}px`
   },
   render: () => {
     ui.resizeTimeline()
